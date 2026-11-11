@@ -1,0 +1,11 @@
+.env
+.env.txt
+*.env
+output/
+__pycache__/
+desktop.ini
+*.csv
+seen_domains.txt
+seen_agencies.txt
+sheet_webhook.gs
+SHEETS SETUP.md

@@ -1,0 +1,31 @@
+# Outreach engine: replies every run; queue 08:00-11:00 WAT; sends 13:00-18:00 WAT (US/UK) and 22:00-24:00 WAT (AU).
+# Times below are UTC (WAT = UTC+1). Nothing really sends unless the repo variable ENGINE_LIVE = 1.
+name: outreach-engine
+on:
+  schedule:
+    - cron: "0 7-11 * * 1-5"
+    - cron: "*/30 12-16 * * 1-5"
+    - cron: "0 17-20 * * 1-5"
+    - cron: "*/30 21-22 * * 1-5"
+    - cron: "0 */4 * * 0,6"
+  workflow_dispatch:
+concurrency: { group: engine, cancel-in-progress: false }
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - run: python -u outreach_engine.py
+        env:
+          SHEETS_WEBHOOK_URL: ${{ secrets.SHEETS_WEBHOOK_URL }}
+          SHEETS_TOKEN: ${{ secrets.SHEETS_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          ALERT_TO: ${{ secrets.ALERT_TO }}
+          ENGINE_LIVE: ${{ vars.ENGINE_LIVE }}
+          DAILY_CAP: ${{ vars.DAILY_CAP || '20' }}

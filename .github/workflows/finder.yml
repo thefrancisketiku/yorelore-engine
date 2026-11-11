@@ -1,0 +1,30 @@
+# Daily lead finding, 06:00 WAT weekdays: 20 new app leads -> "SaaS Client" tab, then fresh "looking for UGC" posts -> "UGC Requests".
+name: lead-finder
+on:
+  schedule:
+    - cron: "0 5 * * 1-5"
+  workflow_dispatch:
+permissions: { contents: write }
+concurrency: { group: finder, cancel-in-progress: false }
+jobs:
+  find:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      SHEETS_WEBHOOK_URL: ${{ secrets.SHEETS_WEBHOOK_URL }}
+      SHEETS_TOKEN: ${{ secrets.SHEETS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt
+      - name: App leads
+        run: python -u app_finder.py --count 20 --max-searches 60
+      - name: UGC requests
+        run: python -u app_finder.py --intent --max-searches 12
+      - name: Remember checked apps (so Serper is never paid twice)
+        run: |
+          git config user.name "yorelore-bot"; git config user.email "bot@users.noreply.github.com"
+          git add seen_apps.txt && git commit -m "seen apps $(date -u +%F)" && git push || echo "nothing new"
