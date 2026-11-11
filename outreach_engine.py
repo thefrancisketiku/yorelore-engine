@@ -35,7 +35,7 @@ MIN_SCORE = 3
 GAP = (35, 110)                                        # seconds between sends inside one run
 STEP_DAYS = {1: 3, 2: 4, 3: 7}                         # after step N, wait this many days (day 0 -> 3 -> 7 -> 14)
 EXTRA_COLS = ["Reply date", "Reply type", "Reply summary", "Drafted answer"]
-BAD_LOCAL = re.compile(r"^(cancel|unsubscribe|billing|invoices?|accounts?payable|legal|privacy|dpo|gdpr|compliance|security|abuse|careers?|jobs|hr|recruiting|noreply|no-reply|donotreply|returns|refunds|orders|carlsagan|example|test)", re.I)
+BAD_LOCAL = re.compile(r"^(cancel|unsubscribe|billing|invoices?|accounts?payable|legal|privacy|dpo|gdpr|compliance|security|abuse|careers?|jobs|hr|recruiting|noreply|no-reply|donotreply|returns|refunds|orders|carlsagan|example|test)\b", re.I)
 STOP = {"replied", "hold", "lost", "do not contact", "bounced", "sequence done", "won", "call booked", "sample sent"}
 
 # send windows in WAT (UTC+1), by lead country: inside each lead's working morning, never before the 13:00 veto

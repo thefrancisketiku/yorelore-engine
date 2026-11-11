@@ -95,7 +95,7 @@ def mix(table, niches):
     return [x for row in __import__("itertools").zip_longest(*lists) for x in row if x]
 
 
-BAD_LOCAL = re.compile(r"^(cancel|unsubscribe|billing|invoices?|accounts?payable|legal|privacy|dpo|gdpr|compliance|security|abuse|careers?|jobs|hr|recruiting|noreply|no-reply|donotreply|returns|refunds|orders|carlsagan|example|test)", re.I)
+BAD_LOCAL = re.compile(r"^(cancel|unsubscribe|billing|invoices?|accounts?payable|legal|privacy|dpo|gdpr|compliance|security|abuse|careers?|jobs|hr|recruiting|noreply|no-reply|donotreply|returns|refunds|orders|carlsagan|example|test)\b", re.I)
 
 
 def now():
