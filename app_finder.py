@@ -95,6 +95,9 @@ def mix(table, niches):
     return [x for row in __import__("itertools").zip_longest(*lists) for x in row if x]
 
 
+BAD_LOCAL = re.compile(r"^(cancel|unsubscribe|billing|invoices?|accounts?payable|legal|privacy|dpo|gdpr|compliance|security|abuse|careers?|jobs|hr|recruiting|noreply|no-reply|donotreply|returns|refunds|orders|carlsagan|example|test)", re.I)
+
+
 def now():
     return dt.datetime.now(dt.timezone.utc)
 
@@ -467,7 +470,7 @@ def qualify(c, a, env, budget, exclude):
         c["pixel"] = bool(site.get("meta_pixel") or site.get("tiktok_pixel"))
     else:
         c["pixel"] = False
-    if c["email"] and not lf.has_mx(c["email"]):
+    if c["email"] and (BAD_LOCAL.match(c["email"]) or not lf.has_mx(c["email"])):
         c["email"], c["email_src"] = "", ""
     if not (c["email"] or c["x"] or c["linkedin"] or c["ig"] or c["tiktok"] or any(f.get("linkedin") or f.get("x") for f in c["founders"])):
         return None, "no contact route"
