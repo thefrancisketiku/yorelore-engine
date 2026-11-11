@@ -344,7 +344,7 @@ def src_x(niches, a, env, budget):
 
 
 # --yc-bulk (approved by Francis 11 Nov 2026 via /permissions): the YC directory's own public search index
-YC_SUB = {"health": r"health|wellness|fitness|mental|nutrition|women", "relationships": r"dating|social|family|relationship",
+YC_SUB = {"health": r"consumer health|wellness|fitness|mental|nutrition|women", "relationships": r"dating|social|family|relationship",
           "money": r"consumer finance|credit and lending|personal finance|asset management", "saas": r"productivity|marketing|creator|small business"}
 YC_REGIONS = ["United States of America", "United Kingdom", "Canada", "Australia"]
 
