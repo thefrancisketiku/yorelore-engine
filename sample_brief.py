@@ -152,7 +152,7 @@ def main():
           "## 2. Phone-screen shot (Nano Banana, new chat: avatar image + one file from screens/)",
           "> Replace the phone screen in their hand with this app screenshot, facing the camera. Keep every pixel of the "
           "screenshot's text and layout exactly as it is; do not redraw the UI. Natural screen glare.", "",
-          "## 3. Flow / Veo 3.1 Fast (Frames on, 9:16, start frame = avatar). One clip per line; lock clip 1, then only swap dialogue."]
+          "## 3. Flow / Veo 3.1 LITE (10 credits; Frames on, 9:16, start frame = avatar). One clip per line; lock clip 1, then only swap dialogue. Use the hook + CTA clips per version; generate the demo line ONCE (it plays under the real app screens)."]
     for i, v in enumerate(vs, 1):
         for part in ("hook", "demo", "cta"):
             pr += [f"**V{i} {part}:**",
@@ -161,7 +161,7 @@ def main():
     pr += ["## 4. CapCut (free)",
            "Stitch hook → demo (cut to the phone-screen shot or a screen recording at 3s) → CTA. Captions on. Tag `AI-generated` "
            "bottom-left for the whole ad. Export 9:16. Make the 3 versions by swapping only the hook clip.",
-           "", f"**Credit estimate:** ~{3 + 2} Veo Fast clips (3 hooks + 1 demo + 1 CTA reused) ≈ 100 credits + retries."]
+           "", "**Credit estimate:** 5 Veo 3.1 LITE clips (3 hooks + 1 demo line + 1 CTA) ≈ 50 credits; use Fast (20) only to redo a failed take. The app screens are REAL (screens/ or a phone screen recording), never AI-drawn."]
     (folder / "prompts.md").write_text("\n".join(pr), encoding="utf-8")
     print(f"Sample kit ready: {folder}\n  brief.md, prompts.md, screens/ ({len(saved)} real screenshots)")
 
