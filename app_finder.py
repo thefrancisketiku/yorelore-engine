@@ -29,6 +29,7 @@ from urllib.parse import quote_plus, urlparse
 
 import requests
 import lead_finder as lf
+from copy_templates import email_one, variant_for, HOOKS_PROMPT_RULES
 
 try:
     from google_play_scraper import search as gp_search, app as gp_app
@@ -75,7 +76,7 @@ COLUMNS = ["Date added", "Source", "App", "Company", "Niche", "One-liner", "Coun
            "App Store", "Size signal", "Last updated", "Founder / owner", "Founder X", "Founder LinkedIn", "Email",
            "IG handle", "TikTok handle", "X handle", "LinkedIn page", "Running ads? (pixel)", "Audience", "Ad Library check",
            "Qualify score (0-6)", "Best channel", "Angle", "Hook idea (for the sample)", "Opener line",
-           "DM (ready to send)", "Email subject", "Email body (ready to send)", "Compliance flag", "Sequence step",
+           "DM (ready to send)", "Email subject", "Email body (ready to send)", "Variant", "Compliance flag", "Sequence step",
            "Next touch", "Date touch 1", "Last touch", "Replied? (Y/N)", "Status", "Proof", "Notes", "Key"]
 INTENT_COLUMNS = ["Date found", "Platform", "Post URL", "Posted", "Author", "What they want", "App / company",
                   "App or software?", "Suggested reply", "Status", "Key"]
@@ -506,11 +507,7 @@ Return a JSON list, one object per app, same order, each with:
 "dm" (under 60 words, starts "Hey [first name]," if founder known else "Hey there,". Structure: opener line, then
   "I make UGC-style ads for apps with realistic AI creators, so you can test 10 new hooks a week without paying creators per video.",
   then "I'd like to make [App] a free 15-sec sample from your app screens. Cool if I do?"),
-"email_subject" (max 5 words, lowercase, names the app, e.g. "[app] ad idea"),
-"email_body" (plain text, no links, under 110 words, starts "Hi [first name]," or "Hi there,". Paragraph 1: the opener line.
-  Paragraph 2: "I make UGC-style video ads for apps: a realistic AI creator walks through [specific feature] on your real screens. No creators, no shoot, clearly labelled as AI."
-  Paragraph 3: "I'd like to make [App] a free 15-second sample with 3 hook versions. If you like one, it's yours to run. Want me to go ahead?"
-  Do NOT add a sign-off or signature; it is added later),
+""" + HOOKS_PROMPT_RULES + """,
 "compliance_flag" ("" or a short warning if the niche needs care: medical/weight claims, financial returns, sexual content)."""
 
 
@@ -573,6 +570,8 @@ def to_row(c, today):
     ai = c.get("ai") or {}
     f0 = next((f for f in c["founders"] if f.get("linkedin") or f.get("x")), {})
     name = ai.get("app_name") or c["name"]
+    email1 = email_one(variant_for(c["key"]), name, c["founder"], ai.get("opener_line", ""), ai.get("feature", ""),
+                       ai.get("hooks") if isinstance(ai.get("hooks"), list) else [], ai.get("niche") or c["niche_hint"])
     proof = "; ".join(x for x in (f"email: {c['email_src']}" if c["email"] else "",
                                   f"listing: {c.get('ph_url') or c.get('listing') or ''}" if c.get("ph_url") or c.get("listing") else "") if x)
     return {
@@ -590,8 +589,8 @@ def to_row(c, today):
         "Audience": ai.get("audience", ""), "Ad Library check": f"https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&q={quote_plus(name)}&search_type=keyword_unordered",
         "Qualify score (0-6)": c["score"], "Best channel": channel(c, ai), "Angle": ai.get("angle", ""),
         "Hook idea (for the sample)": ai.get("hook_idea", ""), "Opener line": ai.get("opener_line", ""),
-        "DM (ready to send)": ai.get("dm", ""), "Email subject": ai.get("email_subject", ""),
-        "Email body (ready to send)": ai.get("email_body", "") if c["email"] else "",
+        "DM (ready to send)": ai.get("dm", ""), "Email subject": email1[0] if c["email"] else "",
+        "Email body (ready to send)": email1[1] if c["email"] else "", "Variant": email1[2] if c["email"] else "",
         "Compliance flag": ai.get("compliance_flag", ""), "Sequence step": 0, "Status": "New", "Proof": proof,
         "Notes": f"Missing: {', '.join(c['missing']) or 'none'}", "Key": c["key"],
     }

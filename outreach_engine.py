@@ -220,9 +220,16 @@ def do_queue(env, rows, preview):
     if allq:
         lines = [f"{i+1}. {r.get('App','')} ({r.get('Country','?')}) -> {r.get('Email','')} | step {step_of(r)+1}"
                  f"{' | FLAG: ' + r['Compliance flag'] if r.get('Compliance flag') else ''}" for i, r in enumerate(allq)]
+        score = []
+        for v in ("A", "C"):
+            sent = [r for r in rows if r.get("Variant") == v and r.get("Date touch 1")]
+            rep = [r for r in sent if (r.get("Replied? (Y/N)") or "").upper().startswith("Y")]
+            pos = [r for r in rep if (r.get("Reply type") or "") in ("interested", "question")]
+            score.append(f"{v}: {len(sent)} sent, {len(rep)} replies ({len(rep) / len(sent):.0%}), {len(pos)} interested"
+                         if sent else f"{v}: none sent yet")
         alert(env, f"Yorelore: {len(allq)} emails queued for today (veto by 13:00 WAT)",
               "These send from 13:00 WAT (US/UK) and 22:00 WAT (AU).\nTo stop one: set its Status to Hold in the "
-              f"SaaS Client tab.\n{SHEET_URL}\n\n" + "\n".join(lines), preview)
+              f"SaaS Client tab.\n{SHEET_URL}\n\nA/B test so far -> " + " | ".join(score) + "\n\n" + "\n".join(lines), preview)
 
 
 # ---------- 2. send (inside each lead's window, never before 13:00 WAT) ----------
