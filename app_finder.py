@@ -685,7 +685,7 @@ def run_intent(env, a):
     seen = {r.get("Key", "").lower() for r in read_csv(INTENT_CSV)} | (sheet_keys(env, INTENT_TAB) if env.get("SHEETS_WEBHOOK_URL") else set())
     posts = []
     for q in INTENT_Q:
-        for o in serper("search", q, env["SERPER_API_KEY"], budget, tbs="qdr:w", num=20):
+        for o in serper("search", q, env["SERPER_API_KEY"], budget, tbs="qdr:w", num=10):
             link = o.get("link", "").split("?")[0]
             if link and link.lower() not in seen and link not in {p["link"] for p in posts}:
                 posts.append({"link": link, "title": o.get("title", ""), "snippet": o.get("snippet", ""), "date": o.get("date", "")})

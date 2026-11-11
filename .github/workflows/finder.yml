@@ -27,4 +27,5 @@ jobs:
       - name: Remember checked apps (so Serper is never paid twice)
         run: |
           git config user.name "yorelore-bot"; git config user.email "bot@users.noreply.github.com"
-          git add seen_apps.txt && git commit -m "seen apps $(date -u +%F)" && git push || echo "nothing new"
+          git add seen_apps.txt && git commit -m "seen apps $(date -u +%F)" || exit 0
+          for i in 1 2 3; do git pull --rebase -q && git push -q && exit 0; sleep 5; done; echo "push failed"
