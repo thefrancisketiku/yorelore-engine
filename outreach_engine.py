@@ -374,7 +374,10 @@ def do_replies(env, rows, preview):
         if kind in ("interested", "question", "wrong_person", "other"):
             alert(env, f"🔥 {r.get('App')} replied ({kind}) - answer today",
                   f"From: {frm}\nApp: {r.get('App')}  |  {r.get('Website','')}\nSubject: {subj}\n\nTHEIR REPLY:\n{reply}\n\n"
-                  f"DRAFTED ANSWER (edit, then send from your inbox):\n{ai.get('draft','')}\n\nSheet: {SHEET_URL}", preview)
+                  f"DRAFTED ANSWER (edit, then send from your inbox):\n{ai.get('draft','')}\n\n"
+                  + (f"IF THEY SAID YES: tell Claude \"make the sample for {r.get('App')}\". It runs sample_brief.py "
+                     f"(script, prompts, real screenshots) so the 48-hour promise holds.\n\n" if kind == "interested" else "")
+                  + f"Sheet: {SHEET_URL}", preview)
     im.logout()
     print(f"Replies: checked {len(ids[0].split())} messages since {since} ({seen_hits} already handled)")
 
