@@ -379,8 +379,19 @@ def main():
     ap.add_argument("--replies", action="store_true")
     ap.add_argument("--preview", action="store_true", help="print only; change nothing")
     ap.add_argument("--force", action="store_true", help="ignore time windows (testing)")
+    ap.add_argument("--test-mail", action="store_true", help="log in to SMTP + IMAP and send one test email to ALERT_TO")
     a = ap.parse_args()
     env = env_all()
+    if a.test_mail:
+        env.setdefault("ALERT_TO", "francisketiku@gmail.com")
+        im = imaplib.IMAP4_SSL(env["IMAP_HOST"], 993)
+        im.login(env["SMTP_USER"], env["SMTP_PASS"]); im.select("INBOX", readonly=True); im.logout()
+        print("IMAP login ok")
+        r = next((x for x in read_rows(env) if x.get("Email body (ready to send)")), None)
+        subj, body = compose(r, 1) if r else ("Yorelore engine test", "Test.")
+        smtp_send(env, env["ALERT_TO"], "[TEST - what a lead receives] " + subj, body)
+        print(f"SMTP ok: test email sent to {env['ALERT_TO']}")
+        return
     now = wat_now()
     print(f"Outreach engine | {now:%a %Y-%m-%d %H:%M} WAT | live={env.get('ENGINE_LIVE') == '1'} | cap {DAILY_CAP}/day")
     if not a.preview:
