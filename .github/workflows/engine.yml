@@ -3,7 +3,7 @@
 name: outreach-engine
 on:
   schedule:
-    - cron: "7,37 6-22 * * 1-5"
+    - cron: "7 6-22 * * 1-5"      # hourly backup; cron-job.org is the main 30-min trigger
     - cron: "17 */4 * * 0,6"
   workflow_dispatch:
 concurrency: { group: engine, cancel-in-progress: false }

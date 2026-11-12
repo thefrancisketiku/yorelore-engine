@@ -430,6 +430,44 @@ def main():
         rows = read_rows(env) if not a.preview else rows
     if a.send or (not only and weekday and now.hour >= 13):
         do_send(env, rows, a.preview, force=a.force)
+    if not only and not a.preview and weekday and now.hour >= 18:
+        daily_report(env, now)
+
+
+LOG_TAB = "Engine log"
+
+
+def daily_report(env, now):
+    """Once per weekday after 18:00 WAT: email Francis what actually happened today (proof the aim was met)."""
+    day = now.date().isoformat()
+    try:
+        logged = lf.sheet_call(env, {"action": "read", "tab": LOG_TAB}).get("values") or []
+    except Exception:
+        logged = []
+    if any(r and str(r[0]) == day for r in logged[1:]):
+        return
+    rows = read_rows(env)
+    sent = [r for r in rows if r.get("Last touch") == day]
+    new = [r for r in sent if str(r.get("Sequence step")) == "1"]
+    reps = [r for r in rows if (r.get("Reply date") or "").startswith(day)]
+    hot = [r for r in reps if r.get("Reply type") in ("interested", "question")]
+    bounced = [r for r in rows if (r.get("Status") or "").lower() == "bounced" and r.get("Last touch") == day]
+    queued = [r for r in rows if (r.get("Status") or "").lower() == "queued"]
+    ab = []
+    for v in ("A", "C"):
+        s = [r for r in rows if r.get("Variant") == v and r.get("Date touch 1")]
+        rp = [r for r in s if (r.get("Replied? (Y/N)") or "").upper().startswith("Y")]
+        ab.append(f"{v}: {len(s)} sent / {len(rp)} replied")
+    target = DAILY_CAP
+    status = "TARGET MET" if len(sent) >= target else f"BELOW TARGET ({len(sent)}/{target})"
+    body = (f"{status}\n\nSent today: {len(sent)} ({len(new)} first emails, {len(sent) - len(new)} follow-ups)\n"
+            f"Replies today: {len(reps)} ({len(hot)} interested/questions)\nBounces today: {len(bounced)}\n"
+            f"Still queued (AU tonight or tomorrow): {len(queued)}\nA/B so far: {' | '.join(ab)}\n\n"
+            + ("Interested: " + ", ".join(r.get("App", "") for r in hot) + "\n\n" if hot else "")
+            + f"Sheet: {SHEET_URL}")
+    alert(env, f"Yorelore daily report {day}: {len(sent)} sent, {len(reps)} replies - {status}", body, False)
+    lf.sheet_call(env, {"action": "append", "tab": LOG_TAB, "header": ["Date", "Sent", "First emails", "Replies", "Interested", "Bounces", "Status"],
+                        "rows": [[day, len(sent), len(new), len(reps), len(hot), len(bounced), status]]})
 
 
 if __name__ == "__main__":
