@@ -34,7 +34,7 @@ MAX_PER_RUN = 6                                        # a run every 30 min -> s
 MIN_SCORE = 3
 GAP = (35, 110)                                        # seconds between sends inside one run
 STEP_DAYS = {1: 3, 2: 4, 3: 7}                         # after step N, wait this many days (day 0 -> 3 -> 7 -> 14)
-EXTRA_COLS = ["Reply date", "Reply type", "Reply summary", "Drafted answer"]
+EXTRA_COLS = ["Reply date", "Reply type", "Reply summary", "Drafted answer", "Queued on"]
 BAD_LOCAL = re.compile(r"^(cancel|unsubscribe|billing|invoices?|accounts?payable|legal|privacy|dpo|gdpr|compliance|security|abuse|careers?|jobs|hr|recruiting|noreply|no-reply|donotreply|returns|refunds|orders|carlsagan|example|test)\b", re.I)
 STOP = {"replied", "hold", "lost", "do not contact", "bounced", "sequence done", "won", "call booked", "sample sent"}
 
@@ -215,7 +215,8 @@ def do_queue(env, rows, preview):
     pick = [r for r in follow if r not in already][:room]          # follow-ups first: they're warmer
     pick += [r for r in new if r not in already and (r.get("Status") or "").strip().lower() != "queued"][:max(0, room - len(pick))]
     print(f"Queue: {len(pick)} new to queue (+{len(already)} already queued) | due follow-ups {len(follow)}, new leads {len(new)}, cap {DAILY_CAP}")
-    update(env, [{"key": r["Key"], "fields": {"Status": "Queued"}} for r in pick], preview)
+    stamp = wat_now().strftime("%Y-%m-%d %H:%M")
+    update(env, [{"key": r["Key"], "fields": {"Status": "Queued", "Queued on": stamp}} for r in pick], preview)
     allq = already + pick
     if allq:
         lines = [f"{i+1}. {r.get('App','')} ({r.get('Country','?')}) -> {r.get('Email','')} | step {step_of(r)+1}"
@@ -243,7 +244,14 @@ def do_send(env, rows, preview, force=False):
         print("Send: SMTP_USER / SMTP_PASS missing, nothing sent."); return
     dnc = dnc_set(env)
     left = DAILY_CAP - sent_today(rows, today)
-    q = [r for r in rows if (r.get("Status") or "").strip().lower() == "queued" and not blocked(r, dnc)]
+    def vetoable_passed(r):
+        """Francis must have had until 13:00 WAT to veto: queued on an earlier day, or today before 13:00."""
+        qo = (r.get("Queued on") or "").strip()
+        if not qo:
+            return True                       # queued before this rule existed
+        d, _, t = qo.partition(" ")
+        return d < today.isoformat() or (d == today.isoformat() and t < "13:00")
+    q = [r for r in rows if (r.get("Status") or "").strip().lower() == "queued" and not blocked(r, dnc) and (force or vetoable_passed(r))]
     ready = [r for r in q if force or WINDOWS.get((r.get("Country") or "").upper().rstrip("?"), (13, 18))[0] <= now.hour
              < WINDOWS.get((r.get("Country") or "").upper().rstrip("?"), (13, 18))[1]]
     batch = ready[:max(0, min(MAX_PER_RUN, left))]
@@ -415,7 +423,8 @@ def main():
         except Exception as e:
             print(f"Replies check failed: {e}")
     weekday = now.weekday() < 5
-    if a.queue or (not only and weekday and 8 <= now.hour < 11) or (a.preview and not only):
+    queued_today = any((r.get("Queued on") or "").startswith(now.date().isoformat()) for r in rows)
+    if a.queue or (not only and weekday and now.hour >= 7 and not queued_today) or (a.preview and not only):
         do_queue(env, rows, a.preview)
         rows = read_rows(env) if not a.preview else rows
     if a.send or (not only and weekday and now.hour >= 13):

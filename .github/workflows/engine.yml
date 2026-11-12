@@ -3,11 +3,8 @@
 name: outreach-engine
 on:
   schedule:
-    - cron: "0 7-11 * * 1-5"
-    - cron: "*/30 12-16 * * 1-5"
-    - cron: "0 17-20 * * 1-5"
-    - cron: "*/30 21-22 * * 1-5"
-    - cron: "0 */4 * * 0,6"
+    - cron: "7,37 6-22 * * 1-5"
+    - cron: "17 */4 * * 0,6"
   workflow_dispatch:
 concurrency: { group: engine, cancel-in-progress: false }
 jobs:
