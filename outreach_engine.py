@@ -228,7 +228,8 @@ def do_queue(env, rows, preview):
             pos = [r for r in rep if (r.get("Reply type") or "") in ("interested", "question")]
             score.append(f"{v}: {len(sent)} sent, {len(rep)} replies ({len(rep) / len(sent):.0%}), {len(pos)} interested"
                          if sent else f"{v}: none sent yet")
-        alert(env, f"Yorelore: {len(allq)} emails queued for today (veto by 13:00 WAT)",
+        late = wat_now().hour >= 13
+        alert(env, f"Yorelore: {len(allq)} emails queued for {'TOMORROW' if late else 'today'} (veto by 13:00 WAT{' tomorrow' if late else ''})",
               "These send from 13:00 WAT (US/UK) and 22:00 WAT (AU).\nTo stop one: set its Status to Hold in the "
               f"SaaS Client tab.\n{SHEET_URL}\n\nA/B test so far -> " + " | ".join(score) + "\n\n" + "\n".join(lines), preview)
 
