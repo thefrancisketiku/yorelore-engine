@@ -35,8 +35,9 @@ MIN_SCORE = 3
 GAP = (35, 110)                                        # seconds between sends inside one run
 STEP_DAYS = {1: 3, 2: 4, 3: 7}                         # after step N, wait this many days (day 0 -> 3 -> 7 -> 14)
 EXTRA_COLS = ["Reply date", "Reply type", "Reply summary", "Drafted answer", "Queued on"]
-BAD_LOCAL = re.compile(r"^(cancel|unsubscribe|billing|invoices?|accounts?payable|legal|privacy|dpo|gdpr|compliance|security|abuse|careers?|jobs|hr|recruiting|noreply|no-reply|donotreply|returns|refunds|orders|carlsagan|example|test)\b", re.I)
-STOP = {"replied", "hold", "lost", "do not contact", "bounced", "sequence done", "won", "call booked", "sample sent"}
+BAD_LOCAL = re.compile(r"^(cancel|unsubscribe|billing|invoices?|accounts?payable|legal|privacy|dpo|gdpr|compliance|security|abuse|careers?|jobs|hr|recruiting|subjectrights|dsar|dmca|noreply|no-reply|donotreply|returns|refunds|orders|carlsagan|example|test)\b", re.I)
+STOP = {"replied", "hold", "lost", "do not contact", "bounced", "sequence done", "won", "call booked", "sample sent", "auto-reply"}
+# "auto-reply" = a shared inbox answered with a ticket bot: no more bumps there; referral.py takes over (finds a real person)
 
 # send windows in WAT (UTC+1), by lead country: inside each lead's working morning, never before the 13:00 veto
 WINDOWS = {"US": (13, 18), "CA": (13, 18), "?": (13, 18), "": (13, 18), "GB": (13, 16), "IE": (13, 16),
@@ -295,7 +296,8 @@ Our last email subject: {subject}
 Their reply:
 {text}
 
-Return JSON: "type" (one of "interested", "question", "not_interested", "unsubscribe", "out_of_office", "wrong_person", "other"),
+Return JSON: "type" (one of "interested", "question", "not_interested", "unsubscribe", "out_of_office", "wrong_person",
+"auto_reply" (a support-ticket bot / "we received your request" / automated acknowledgement, NOT a person), "other"),
 "summary" (max 20 words), "draft" (Francis's reply, plain, under 90 words, warm and direct. If interested: say you'll make the sample,
 ask ONE question (which feature or audience matters most), and offer a 15-min walkthrough at https://calendly.com/francisketiku/discovery-call
 once it's ready. If question: answer only from these facts: realistic AI creators, labelled as AI, demo-style (never fake results),
@@ -333,6 +335,13 @@ def do_replies(env, rows, preview):
         if r.get("Email") and r["Email"].split("@")[-1] not in lf.FREE_MAIL:
             by_dom.setdefault(r["Email"].split("@")[-1].lower(), r)
     by_hash = {hashlib.sha1(r["Key"].encode()).hexdigest()[:12]: r for r in rows if r.get("Key")}
+    import referral
+    try:
+        refs = referral.rows_(env)
+    except Exception:
+        refs = []
+    ref_hash = {referral.h12(r["Key"]): r for r in refs if r.get("Key")}
+    ref_email = {r["Email"].lower(): r for r in refs if r.get("Email") and r.get("Kind") in ("ask", "intro")}
     since = (dt.date.today() - dt.timedelta(days=4)).strftime("%d-%b-%Y")
     im = imaplib.IMAP4_SSL(env["IMAP_HOST"], 993)
     im.login(env["SMTP_USER"], env["SMTP_PASS"])
@@ -350,11 +359,25 @@ def do_replies(env, rows, preview):
         text = body_text(msg)
         # bounces
         if re.match(r"(mailer-daemon|postmaster)@", frm) or "undeliverable" in subj.lower() or "delivery status" in subj.lower():
+            hr = re.search(r"yl-r-([0-9a-f]{12})-", text + refs)
+            if hr:
+                rr = ref_hash.get(hr.group(1))
+                if rr and (rr.get("Status") or "") not in ("Bounced",) and rr.get("Email", "").lower() in text.lower():
+                    referral.handle_bounce(env, rr, preview)
+                continue
             h = re.search(r"yl-([0-9a-f]{12})-", text + refs)
             r = by_hash.get(h.group(1)) if h else next((by_email[e] for e in by_email if e in text.lower()), None)
             if r and (r.get("Status") or "").lower() != "bounced":
                 update(env, [{"key": r["Key"], "fields": {"Status": "Bounced"}}], preview)
                 print(f" bounce: {r['Email']}")
+            continue
+        hr = re.search(r"yl-r-([0-9a-f]{12})-", refs)
+        rr = (ref_hash.get(hr.group(1)) if hr else None) or ref_email.get(frm)
+        if rr and rr.get("Kind") in ("ask", "intro"):
+            if referral.handle_reply(env, rr, frm, subj, strip_quoted(text), msg.get("Message-ID", ""), when_s, preview):
+                rr["Reply date"] = when_s
+            else:
+                seen_hits += 1
             continue
         h = re.search(r"yl-([0-9a-f]{12})-", refs)
         r = (by_hash.get(h.group(1)) if h else None) or by_email.get(frm) or by_dom.get(frm.split("@")[-1])
@@ -375,12 +398,23 @@ def do_replies(env, rows, preview):
         elif kind == "out_of_office":
             fields.pop("Replied? (Y/N)")
             fields["Next touch"] = (dt.date.today() + dt.timedelta(days=7)).isoformat()
+        elif kind == "auto_reply":
+            fields.pop("Replied? (Y/N)")
+            fields["Status"] = "Auto-reply"            # stop bumping a ticket queue; referral.py finds a real person
         else:
             fields["Status"] = "Replied"
+        handed_off = False
+        if kind == "wrong_person":
+            try:
+                handed_off = referral.from_lead_reply(env, r, frm, subj, reply, msg.get("Message-ID", ""), preview)
+            except Exception as e:
+                print(f"   referral hand-off failed: {e}")
+            if handed_off:
+                fields["Status"] = "Referred"
         update(env, [{"key": r["Key"], "fields": fields}], preview)
         r.update(fields)
-        print(f" reply from {frm} ({r.get('App')}): {kind}")
-        if kind in ("interested", "question", "wrong_person", "other"):
+        print(f" reply from {frm} ({r.get('App')}): {kind}{' -> referral queued' if handed_off else ''}")
+        if kind in ("interested", "question", "wrong_person", "other") and not handed_off:
             alert(env, f"🔥 {r.get('App')} replied ({kind}) - answer today",
                   f"From: {frm}\nApp: {r.get('App')}  |  {r.get('Website','')}\nSubject: {subj}\n\nTHEIR REPLY:\n{reply}\n\n"
                   f"DRAFTED ANSWER (edit, then send from your inbox):\n{ai.get('draft','')}\n\n"
@@ -430,6 +464,16 @@ def main():
         rows = read_rows(env) if not a.preview else rows
     if a.send or (not only and weekday and now.hour >= 13):
         do_send(env, rows, a.preview, force=a.force)
+    if not only and weekday and now.hour >= 7:
+        import referral
+        try:
+            referral.make_asks(env, read_rows(env) if not a.preview else rows, a.preview)
+        except Exception as e:
+            print(f"Referral asks failed: {e}")
+        try:
+            referral.send_queued(env, a.preview, force=a.force)
+        except Exception as e:
+            print(f"Referral send failed: {e}")
     if not only and not a.preview and weekday and now.hour >= 18:
         daily_report(env, now)
 
@@ -464,6 +508,7 @@ def daily_report(env, now):
             f"Replies today: {len(reps)} ({len(hot)} interested/questions)\nBounces today: {len(bounced)}\n"
             f"Still queued (AU tonight or tomorrow): {len(queued)}\nA/B so far: {' | '.join(ab)}\n\n"
             + ("Interested: " + ", ".join(r.get("App", "") for r in hot) + "\n\n" if hot else "")
+            + (__import__("referral").stats(env, day) + "\n\n")
             + f"Sheet: {SHEET_URL}")
     alert(env, f"Yorelore daily report {day}: {len(sent)} sent, {len(reps)} replies - {status}", body, False)
     lf.sheet_call(env, {"action": "append", "tab": LOG_TAB, "header": ["Date", "Sent", "First emails", "Replies", "Interested", "Bounces", "Status"],
