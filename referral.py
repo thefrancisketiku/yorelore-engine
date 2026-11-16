@@ -154,6 +154,31 @@ thank them either way. Start with "Hi {first},". No signature. Facts about the a
 Return JSON: "subject" (lowercase, max 6 words, no "quick question"), "body"."""
 
 
+GROWTH = re.compile(r"growth|marketing|cmo|ugc|paid|acquisition|performance|brand|social|creative|content", re.I)
+JUNIOR = re.compile(r"intern|assistant|associate|junior|recruit|talent|hr", re.I)
+
+
+def rank(p):
+    t = p.get("title") or ""
+    if GROWTH.search(t) and not JUNIOR.search(t):
+        return 0
+    if p.get("is_decision_maker"):
+        return 1
+    return 3 if JUNIOR.search(t) else 2
+
+
+PITCH = """Write a short cold email from Francis Ketiku (founder of Yorelore: realistic AI-creator UGC video ads for apps, always
+labelled as AI, demo-style) to {name}, {title} at {app}.
+Context: Francis already emailed {app}'s shared inbox ({inbox}) offering a free 15-second sample ad; it went into a support queue,
+so he is writing to {first} directly as the person who looks after growth / ads.
+Offer to make a free 15-second sample ad on {app}'s real app screens with a realistic AI creator (labelled as AI), name ONE
+concrete thing the sample would show (a real feature from the facts), and end with one easy yes/no question. Add one line:
+if someone else handles video ads, a name is just as helpful.
+Rules: under 80 words, plain text, warm and human, no flattery, no hype, no links. Start with "Hi {first},". No signature.
+Facts about the app you may use: {one}
+Return JSON: "subject" (lowercase, max 6 words, no "quick question"), "body"."""
+
+
 def find_insider(env, lead, budget):
     dom = (lead.get("Email") or "").split("@")[-1].lower() or lf.root_domain(lead.get("Website") or "")
     app = lead.get("App") or dom
@@ -172,13 +197,12 @@ def find_insider(env, lead, budget):
     ppl = [p for p in ppl if name_parts(p.get("name"))[1]]          # need a first AND last name
     if not ppl:
         return None
-    founder = (lead.get("Founder / owner") or "").lower()
-    ppl.sort(key=lambda p: (bool(p.get("is_decision_maker")), p.get("name", "").lower() in founder))
+    ppl.sort(key=rank)          # growth/marketing/UGC lead first, then founder/CEO, then anyone else
     who = ppl[0]
     pat = known_pattern(dom, env, budget)
     return {"name": who["name"], "title": who.get("title", ""), "linkedin": who.get("linkedin", ""), "domain": dom,
             "email": make_email(who["name"], dom, pat), "basis": f"guessed: {pat}",
-            "dm": [p for p in ppl if p.get("is_decision_maker")]}
+            "dm": [p for p in ppl if p.get("is_decision_maker")], "direct": rank(who) <= 1}
 
 
 def eligible(lead, today, have):
@@ -220,7 +244,7 @@ def make_asks(env, leads, preview):
         dm = ins["dm"]
         dm_note = (f"If it helps, Francis has seen {dm[0]['name']} ({dm[0].get('title','')}) - {first} can just confirm if that's right."
                    if dm and dm[0]["name"] != ins["name"] else "")
-        ai = ai_obj(ASK.format(name=ins["name"], first=first, title=ins["title"] or "on the team", app=lead.get("App", ""),
+        ai = ai_obj((PITCH if ins.get("direct") else ASK).format(name=ins["name"], first=first, title=ins["title"] or "on the team", app=lead.get("App", ""),
                                inbox=lead.get("Email", ""), one=lead.get("One-liner", ""), dm_note=dm_note), env)
         body = (ai.get("body") or "").strip()
         if not body:

@@ -26,4 +26,6 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           ALERT_TO: ${{ secrets.ALERT_TO }}
           ENGINE_LIVE: ${{ vars.ENGINE_LIVE }}
-          DAILY_CAP: ${{ vars.DAILY_CAP || '20' }}
+          SMTP_USER2: ${{ secrets.SMTP_USER2 }}
+          SMTP_PASS2: ${{ secrets.SMTP_PASS2 }}
+          NEW_CAP: ${{ vars.NEW_CAP || '20' }}
