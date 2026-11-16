@@ -44,6 +44,13 @@ def rows_(env):
 def add(env, recs, preview):
     if not recs:
         return
+    try:
+        have = {r.get("Key") for r in rows_(env)}
+    except Exception:
+        have = set()
+    recs = [r for r in recs if r.get("Key") not in have]      # the webhook updates the FIRST row with a key: duplicates never get marked Sent
+    if not recs:
+        return
     if preview:
         for r in recs:
             print(f"   (preview) Referrals += {r['Kind']} -> {r.get('Name')} <{r.get('Email')}> : {r.get('Subject')}")
@@ -253,13 +260,21 @@ def send_queued(env, preview, force=False):
         lo, hi = oe.WINDOWS.get((r.get("Country") or "").upper().rstrip("?"), (13, 18))
         return force or r.get("Kind") == "thanks" or lo <= now.hour < hi
 
+    done_keys = {r.get("Key") for r in refs if (r.get("Status") or "").strip().lower() != "queued"}
+    mailed_today = {(r.get("Email") or "").lower() for r in refs if r.get("Sent on") == today}
     due = [r for r in refs if (r.get("Status") or "").strip().lower() == "queued" and r.get("Email")
+           and r.get("Key") not in done_keys and r["Email"].lower() not in mailed_today
            and r["Email"].lower() not in dnc and r["Email"].split("@")[-1].lower() not in dnc and ready(r)]
     for r in refs:   # intro bump (day 4)
         nt = oe.as_date(r.get("Next touch"))
         if r.get("Kind") == "intro" and (r.get("Status") or "") == "Sent" and nt and nt <= now.date() and r.get("Step") == "1":
             r["_bump"] = True
             due.append(r)
+    uniq, seen_k = [], set()
+    for r in due:
+        if r.get("Key") not in seen_k:
+            seen_k.add(r.get("Key")); uniq.append(r)
+    due = uniq
     print(f"Referral send: {len(due)} due")
     for r in due[:MAX_PER_RUN]:
         bump = r.get("_bump")
