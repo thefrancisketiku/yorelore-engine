@@ -3,7 +3,7 @@ Sample Brief Builder: the moment an app lead says "yes", this prepares everythin
   python sample_brief.py "Empirical Health"        (app name, or part of it, or the row Key)
 
 It reads the lead's row in the "SaaS Client" tab, then writes  Yorelore - Outreach system/Samples/<App>/ :
-  brief.md        3 hook versions -> 15-second script (hook / demo / CTA) + on-screen plan + labels + compliance
+  brief.md        3 hook OPTIONS (we make ONE ad: 1 sample per client before they pay) -> 15-second script (hook / demo / CTA) + on-screen plan + labels + compliance
   prompts.md      Nano Banana avatar prompt + Flow (Veo 3.1 Fast) prompts per clip, in the SOP's 3-part format
   screens/        the app's real App Store / Google Play screenshots (what the creator "shows")
 Follows UGC Production SOP + App Sample Kit: demo style only, AI creator labelled, no personal-result claims.
@@ -121,7 +121,7 @@ def main():
 
     brief = [f"# {app}: free sample brief",
              f"*Lead: {r.get('Founder / owner') or '?'} · {r.get('Email','')} · {r.get('Website','')} · Variant {r.get('Variant','')}*",
-             f"*Promise made in the email: 15 seconds, 3 hook versions, AI creator labelled, free. Deadline: 48 hours from their yes.*", "",
+             f"*Promise: ONE free 15-second ad (pick the best hook below; never promise more than 1 sample before payment), AI creator labelled. Deadline: 48 hours from their yes.*", "",
              f"**Compliance:** {r.get('Compliance flag') or 'standard'}. Avoid: {', '.join(ai.get('risk_lines', [])) or '-'}",
              "Every version ends with the small tag **AI-generated** (bottom corner, whole ad) and the preview carries "
              "a light watermark **Yorelore · sample preview**.", "",
@@ -135,7 +135,7 @@ def main():
                   f"| 10-15s | {v.get('cta','')} | creator + app name/icon · AI-generated tag |", ""]
     brief += ["**B-roll:** " + " · ".join(ai.get("broll", [])), "",
               "## Delivery (on the walkthrough call or by reply)",
-              f"1. Reply to {who} within the hour: \"On it, you'll have 3 versions by [day].\"",
+              f"1. Reply to {who} within the hour: \"On it, you'll have your ad by [day].\"",
               "2. Send the watermarked preview (6-8s teaser or 2 stills) + the Calendly link (Game Plan 1.4, message 2).",
               "3. Clean HD file after the call (or anyway if they refuse the call: goodwill = warm lead).",
               "4. Update the sheet row: Status = Sample sent, Sample sent date."]
@@ -160,8 +160,8 @@ def main():
                    f"TikTok creator showing a friend an app. They say: \"{v.get(part,'')}\" Rules: {rules}; smiles slightly at the end.", ""]
     pr += ["## 4. CapCut (free)",
            "Stitch hook → demo (cut to the phone-screen shot or a screen recording at 3s) → CTA. Captions on. Tag `AI-generated` "
-           "bottom-left for the whole ad. Export 9:16. Make the 3 versions by swapping only the hook clip.",
-           "", "**Credit estimate:** 5 Veo 3.1 LITE clips (3 hooks + 1 demo line + 1 CTA) ≈ 50 credits; use Fast (20) only to redo a failed take. The app screens are REAL (screens/ or a phone screen recording), never AI-drawn."]
+           "bottom-left for the whole ad. Export 9:16. ONE ad only (pick the strongest hook); extra hooks are for after they pay.",
+           "", "**Credit estimate:** 3 Veo 3.1 LITE clips (1 hook + 1 demo line + 1 CTA) ≈ 30 credits; use Fast (20) only to redo a failed take. The app screens are REAL (screens/ or a phone screen recording), never AI-drawn."]
     (folder / "prompts.md").write_text("\n".join(pr), encoding="utf-8")
     print(f"Sample kit ready: {folder}\n  brief.md, prompts.md, screens/ ({len(saved)} real screenshots)")
 
