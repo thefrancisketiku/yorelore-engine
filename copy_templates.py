@@ -8,7 +8,8 @@ NICHE_WORD = {"health": "health", "relationships": "dating and relationship", "m
 
 
 def variant_for(key):
-    return "A" if int(hashlib.sha1(str(key).lower().encode()).hexdigest(), 16) % 2 == 0 else "C"
+    # 22 Nov 2026: A/B closed. C won (7/42 replies vs A 1/44), so every new Email 1 uses C (Francis).
+    return "C"
 
 
 def first_name(founder):
